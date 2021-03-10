@@ -41,7 +41,7 @@ def gaussian_kernel_d(sz=5, sigma=5):
 
     rng = math.floor(sz/2)
 
-    y,x = np.mgrid[-rng:rng+1, -rng:rng+1]
+    y,x = np.ogrid[-rng:rng+1, -rng:rng+1]
 
     normal = 1 / (2*np.pi*sigma**2)
 
@@ -49,6 +49,56 @@ def gaussian_kernel_d(sz=5, sigma=5):
     dGy = -( y / sigma**2 ) * np.exp( -(x**2 + y**2) / (2.0 * sigma**2) )
 
     return dGx, dGy
+
+# thins out edge lines
+def non_max_spr(G, theta):
+
+    W, H = G.shape[:2]
+
+    res = np.zeros( (W, H) )
+
+    # convert angle matrix to degrees
+    theta = theta * 180.0 / np.pi
+
+    tolerance = 25
+    halfT = tolerance/2
+
+    for i in range(0, W-1):
+        for j in range(0, H-1):
+
+            try:
+                # these are the interpolated pixels on the line that are in front and behind the pixel being checked
+                q = 0
+                r = 0
+                
+                # angle is around 0 degrees
+                if( (0 <= theta[i][j] < tolerance) or ( (180-tolerance) <= theta[i][j] < 180) ):
+                    q = G[i, j+1]
+                    r = G[i, j-1]
+                # angle is around 45 degrees
+                elif( 45-halfT <= theta[i][j] < 45+halfT ):
+                    q = G[i+1][j-1]
+                    r = G[i-1][j+1]
+                # angle is around 90 degrees
+                elif( 90-halfT <= theta[i][j] < 90+halfT ):
+                    q = G[i+1][j]
+                    r = G[i-1][j]
+                # angle is around 135
+                elif( 135-halfT <= theta[i][j] < 135+halfT ): 
+                    q = G[i-1][j-1]
+                    r = G[i+1][j+1]
+                
+                # if the pixel in question is greater than the iterpolated pixels then it will retain value
+                if( G[i,j] >= q and G[i,j] >= r ):
+                    res[i][j] = G[i][j]
+                else:
+                    res[i][j] = 0
+            
+            except IndexError as err:
+                pass
+    
+    return res
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -71,8 +121,15 @@ def main():
     dGx, dGy = gaussian_kernel_d()
 
     Ix = convolve(img, dGx)
+    Iy = convolve(img, dGy)
 
-    pilImg = Image.fromarray(Ix)
+    dG = np.sqrt(Ix**2 + Iy**2)
+
+    angles = np.arctan2(Iy, Ix)
+
+    nm = non_max_spr(dG, angles)
+
+    pilImg = Image.fromarray(nm)
 
     pilImg.show()
 
