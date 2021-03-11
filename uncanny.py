@@ -16,6 +16,7 @@ def convolve(im, kernel):
     kHeight = kernel.shape[1]
     kWidth = kernel.shape[0]
 
+    # if the kernel has a dimension of 1 then we shouldn't subtract from the padding
     if (kWidth == 1):
         padx = 1
     else:
@@ -26,14 +27,17 @@ def convolve(im, kernel):
     else:
         pady = kHeight-1
 
+    # this adds zeros around the image so we can keep the original dimensions
     im = cv2.copyMakeBorder(im, padx, padx, pady, pady, cv2.BORDER_CONSTANT, 0)
 
     res = np.zeros( (imWidth, imHeight) )
 
+    # move the window along the x direction until it reaches the end
     for x in np.arange(0, imWidth):
 
         for y in np.arange(0, imHeight):
 
+            # current window of interest
             window = im[x:x+padx+1, y:y+pady+1]
 
             res[x, y] = (window * kernel).sum()
@@ -46,7 +50,7 @@ def convolve(im, kernel):
 
 # construct a gaussian gradient kernel of a certain size
 # return the spatially separated kernel of the gaussian derivative
-def gaussian_kernel_d(sz=5, sigma=3):
+def gaussian_kernel_d(sigma, sz):
 
     rng = math.floor(sz/2)
 
@@ -113,13 +117,19 @@ def main():
     parser = argparse.ArgumentParser()
 
     # filname of image 
-    parser.add_argument('-f', action='store', dest='fname', help='Image to detect edges on.')
+    parser.add_argument('-f', action='store', dest='fname', help='Image to detect edges on.', required=True)
 
     # user inputs what sigma value they want to use for Gaussian kernel
-    parser.add_argument('-s', action='store', dest='sigma', help='Sigma value for the Gaussian kernel.')
+    parser.add_argument('-s', action='store', dest='sigma', type=float, help='Sigma value for the Gaussian kernel.', required=True)
+
+    # low value for hysteresis thresholding
+    parser.add_argument('-L', action='store', dest='low', help='Lower end of the threshold.', required=True)
+
+    # high value for hysteresis thresholding
+    parser.add_argument('-H', action='store', dest='high', help='Higher end of the threshold.', required=True)
 
     # desired dimensions of the kernel
-    parser.add_argument('-S', action='store', dest='size', help='Size of the Gaussian kernel.')
+    parser.add_argument('-S', action='store', dest='size', type=int, default=5, help='Size of the Gaussian kernel. Default is 5x5 kernel.')
 
     args = parser.parse_args()
 
@@ -127,7 +137,7 @@ def main():
 
     img = np.asarray( ImageOps.grayscale(img) )
 
-    dGx, dGy = gaussian_kernel_d()
+    dGx, dGy = gaussian_kernel_d(args.sigma, args.size)
 
     Ix = convolve(img, dGx)
     Iy = convolve(img, dGy)
