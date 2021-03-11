@@ -16,9 +16,17 @@ def convolve(im, kernel):
     kHeight = kernel.shape[1]
     kWidth = kernel.shape[0]
 
-    pad = kWidth-1
+    if (kWidth == 1):
+        padx = 1
+    else:
+        padx = kWidth-1
+    
+    if (kHeight == 1):
+        pady = 1
+    else:
+        pady = kHeight-1
 
-    im = cv2.copyMakeBorder(im, pad, pad, pad, pad, cv2.BORDER_CONSTANT, 0)
+    im = cv2.copyMakeBorder(im, padx, padx, pady, pady, cv2.BORDER_CONSTANT, 0)
 
     res = np.zeros( (imWidth, imHeight) )
 
@@ -26,7 +34,7 @@ def convolve(im, kernel):
 
         for y in np.arange(0, imHeight):
 
-            window = im[x:x+pad+1, y:y+pad+1]
+            window = im[x:x+padx+1, y:y+pady+1]
 
             res[x, y] = (window * kernel).sum()
     
@@ -37,7 +45,8 @@ def convolve(im, kernel):
     return res
 
 # construct a gaussian gradient kernel of a certain size
-def gaussian_kernel_d(sz=5, sigma=5):
+# return the spatially separated kernel of the gaussian derivative
+def gaussian_kernel_d(sz=5, sigma=3):
 
     rng = math.floor(sz/2)
 
@@ -45,8 +54,8 @@ def gaussian_kernel_d(sz=5, sigma=5):
 
     normal = 1 / (2*np.pi*sigma**2)
 
-    dGx = -( x / sigma**2 ) * np.exp( -(x**2 + y**2) / (2.0 * sigma**2) )
-    dGy = -( y / sigma**2 ) * np.exp( -(x**2 + y**2) / (2.0 * sigma**2) )
+    dGx = -( x / sigma**2 ) * np.exp( -(x**2) / (2.0 * sigma**2) )
+    dGy = -( y / sigma**2 ) * np.exp( (y**2) / (2.0 * sigma**2) )
 
     return dGx, dGy
 
