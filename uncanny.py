@@ -112,6 +112,35 @@ def non_max_spr(G, theta):
     
     return res
 
+# determines which pixels matter the most
+def thresholding(img, L, H):
+
+    M, N = img.shape[:2]
+
+    for i in range(0, M-1):
+        for j in range(0, N-1):
+
+            try:
+
+                # if it is in between the threshold values then check surrounding pixels
+                # if any of the surrounding pixels are greater than the high threshold then the current pixel can become apart of the strong edge
+                if(L <= img[i, j] and img[i, j] <= H):
+                    if( (img[i+1, j-1] >= H) or (img[i+1, j] >= H) or (img[i+1, j+1] >= H) 
+                        or (img[i, j-1] >= H) or (img[i, j+1] >= H)
+                        or (img[i-1, j-1] >= H) or (img[i-1, j] >= H) or (img[i-1, j+1] >= H) ):
+                        img[i, j] = 255
+                    else:
+                        img[i, j] = 0
+                # if a pixel is below threshold then it can be discarded
+                elif(img[i, j] <= L):
+                    img[i, j] = 0
+                elif(img[i, j] >= H):
+                    img[i, j] = 255
+
+            except IndexError as err:
+                pass
+    
+    return img
 
 def main():
     parser = argparse.ArgumentParser()
@@ -123,30 +152,48 @@ def main():
     parser.add_argument('-s', action='store', dest='sigma', type=float, help='Sigma value for the Gaussian kernel.', required=True)
 
     # low value for hysteresis thresholding
-    parser.add_argument('-L', action='store', dest='low', help='Lower end of the threshold.', required=True)
+    parser.add_argument('-L', action='store', dest='low', type=int, help='Lower end of the threshold.', required=True)
 
     # high value for hysteresis thresholding
-    parser.add_argument('-H', action='store', dest='high', help='Higher end of the threshold.', required=True)
+    parser.add_argument('-H', action='store', dest='high', type=int, help='Higher end of the threshold.', required=True)
 
     # desired dimensions of the kernel
     parser.add_argument('-S', action='store', dest='size', type=int, default=5, help='Size of the Gaussian kernel. Default is 5x5 kernel.')
 
     args = parser.parse_args()
 
+    if(args.low >= args.high):
+        raise ValueError("High value threshold must be greater than low value!")
+
+    if(args.high > 255):
+        raise ValueError("High threshold cannot be greater than 255!")
+
+    if(args.low < 0):
+        raise ValueError("Low threshold cannot be lower than 0!")
+
     img = Image.open(args.fname)
 
+    # need image to be gray scale for algorithm to work
     img = np.asarray( ImageOps.grayscale(img) )
 
+    # get spatially separated kernel
     dGx, dGy = gaussian_kernel_d(args.sigma, args.size)
 
+    # get x and y gradients
     Ix = convolve(img, dGx)
     Iy = convolve(img, dGy)
 
+    # calclate the magnitudes of the gradient at each pixel
     dG = np.sqrt(Ix**2 + Iy**2)
 
+    # this calculates the angle of the gradient at each pixel
     angles = np.arctan2(Iy, Ix)
 
+    # we only want the largest value along the gradient to be visible
     nm = non_max_spr(dG, angles)
+
+    # exacts the most important pixels based on the threshold values
+    thresholding(nm, args.low, args.high)
 
     pilImg = Image.fromarray(nm)
 
