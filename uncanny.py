@@ -142,6 +142,38 @@ def thresholding(img, L, H):
     
     return img
 
+# calculate the R score based off the x and y derivatives of the image
+def harris_scores(Ix, Iy, sig, k=0.05):
+
+    # compute the matrix M for each point (x,y)
+    Ixx = ndimage.gaussian_filter(Ix**2, sigma=sig)
+    Ixy = ndimage.gaussian_filter(Ix*Iy, sigma=sig)
+    Iyy = ndimage.gaussian_filter(Iy**2, sigma=sig)
+
+    detM = Ixx * Iyy - Ixy**2
+
+    trM = Ixx + Iyy
+
+    R = detM - k*(trM**2)
+
+    return R
+
+# colour spots where the R score is high enough
+def show_corners(R, img, rThr):
+
+    M, N = img.shape[:2]
+
+    res = np.zeros( (M,N) )
+
+    for i in range(0, M-1):
+        for j in range(0, N-1):
+
+            if(R[i][j] > rThr):
+                res[i][j] = 255
+
+    return res
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -156,6 +188,9 @@ def main():
 
     # high value for hysteresis thresholding
     parser.add_argument('-H', action='store', dest='high', type=int, help='Higher end of the threshold.', required=True)
+
+    # thredhold to determine if R score belongs to a corner or not
+    parser.add_argument('-R', action='store', dest='rval', type=int, help='Threshold for the R scores.', required=True)
 
     # desired dimensions of the kernel
     parser.add_argument('-S', action='store', dest='size', type=int, default=5, help='Size of the Gaussian kernel. Default is 5x5 kernel.')
@@ -183,6 +218,12 @@ def main():
     Ix = convolve(img, dGx)
     Iy = convolve(img, dGy)
 
+    # get the R scores for the image
+    R = harris_scores(Ix, Iy, args.sigma)
+
+    # will colour the spots that are greater than the R threshold as white
+    corn = show_corners(R, img, args.rval)
+
     # calclate the magnitudes of the gradient at each pixel
     dG = np.sqrt(Ix**2 + Iy**2)
 
@@ -192,12 +233,20 @@ def main():
     # we only want the largest value along the gradient to be visible
     nm = non_max_spr(dG, angles)
 
+    corn_sup = non_max_spr(corn, angles)
+
     # exacts the most important pixels based on the threshold values
     thresholding(nm, args.low, args.high)
 
-    pilImg = Image.fromarray(nm)
+    edgeImg = Image.fromarray(nm)
 
-    pilImg.show()
+    cornerImg = Image.fromarray(corn_sup)
+
+    # show edges
+    edgeImg.show()
+
+    # show corners
+    cornerImg.show()
 
 
 if __name__ == '__main__':
