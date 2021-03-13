@@ -29,7 +29,7 @@ Next we need to only keep the strongest edges by using hysteresis thresholding. 
 
 Image after Thresholding:
 
-![Thresh](/screenshots/theshold.PNG)
+![Thresh](/screenshots/threshold.PNG)
 
 ### Harris Corner Detector
 
